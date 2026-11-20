@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จัดการระบบ · คลังรายล็อต</title>
+<style>
+  :root{--bg:#ffffff;--card:#f7f7f5;--card2:#ffffff;--ink:#000000;--muted:#686868;--line:#e6e6e6;
+        --active:#c8e6cd;--quar:#f3c9b6;--off:#e6e6e6;--err:#ff3d8b;--primary:#000000;--on-primary:#ffffff;
+        --success:#1ea64a;--pink:#efd4d4;--hover:#f1f1f1}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans Thai',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;font-size:16px;line-height:1.6}
+  button,input,select,textarea{font:inherit}
+  :focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+  header{background:var(--card);border-bottom:1px solid var(--line)}
+  .head{max-width:1400px;margin:0 auto;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:14px}
+  .head h1{font-size:22px;margin:0}
+  .head .meta{color:var(--muted);font-size:15px}
+  .head a{color:var(--muted)}
+  .creds{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+  .creds label{display:flex;flex-direction:column;font-size:14px;color:var(--muted)}
+  .input{background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-width:170px}
+  .btn{border:1px solid var(--line);background:var(--card2);color:var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:600}
+  .btn:hover:not(:disabled){border-color:var(--ink)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+  .btn.danger{border-color:var(--err);color:var(--ink)}
+  .btn.danger.primary{background:var(--err);border-color:var(--err);color:var(--on-primary)}
+  main{max-width:1400px;margin:0 auto;padding:18px 20px 40px}
+  .tabs{display:flex;gap:8px;margin-bottom:14px}
+  .tab{padding:8px 18px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:700}
+  .banner{border-radius:12px;padding:12px 16px;margin-bottom:14px;font-weight:600}
+  .banner[hidden]{display:none}
+  .banner.info{background:var(--quar);border:1px solid var(--quar);color:var(--ink)}
+  .banner.ok{background:var(--active);border:1px solid var(--success);color:var(--ink)}
+  .banner.err{background:var(--pink);border:1px solid var(--err);color:var(--ink)}
+  .tools{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center}
+  .tools .input{min-width:260px}
+  .count{color:var(--muted);font-size:14px}
+  .tablewrap{overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}
+  table{width:100%;border-collapse:collapse;min-width:1000px}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+  th{color:var(--muted);font-weight:600;font-size:15px;position:sticky;top:0;background:var(--card)}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tbody tr:hover{background:var(--hover)}
+  tr.expired td{background:var(--pink)}
+  tr.expired:hover td{background:var(--quar)}
+  .expflag{display:inline-block;margin-left:6px;font-size:13px;font-weight:700;color:var(--ink);border:1px solid var(--err);border-radius:999px;padding:0 8px}
+  .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:14px;font-weight:700;color:#000}
+  .badge.active{background:var(--active)}
+  .badge.quarantine{background:var(--quar)}
+  .badge.written_off{background:var(--off);color:var(--ink)}
+  .actions{display:flex;flex-wrap:nowrap;gap:6px}
+  .none{color:var(--muted)}
+  dialog{background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:16px;padding:22px;width:min(520px,94vw)}
+  dialog.danger{border-color:var(--err)}
+  dialog::backdrop{background:rgba(0,0,0,.65)}
+  dialog h2{margin:0 0 8px;font-size:20px}
+  .summary{color:var(--muted);margin:0 0 10px}
+  .irrev{color:var(--err);font-weight:700;margin:0 0 10px}
+  dialog label{display:block;font-weight:600;margin:10px 0 4px}
+  dialog .input{width:100%}
+  textarea.input{min-height:80px;resize:vertical}
+  .dlgerr{color:var(--ink);background:var(--pink);border:1px solid var(--err);border-radius:10px;padding:10px 12px;margin-top:12px}
+  .dlgerr[hidden]{display:none}
+  .dlgbtns{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+</style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div>
+      <h1>จัดการระบบร้านยาจำลอง</h1>
+      <div class="meta">วันอ้างอิง (as_of): <strong id="asOf">—</strong> · <a href="index.html">หน้าแรก</a></div>
+    </div>
+    <form class="creds" id="credForm" autocomplete="off">
+      <label>รหัสผู้ดูแล<input class="input" id="adminCode" type="password" autocomplete="off"></label>
+      <label>รหัสเภสัชกร<input class="input" id="rxCode" type="text" placeholder="เช่น RX-01" autocomplete="off"></label>
+    </form>
+  </div>
+</header>
+
+<main>
+  <div class="tabs" role="tablist"><span class="tab" role="tab" aria-selected="true">คลังรายล็อต</span></div>
+  <div class="banner info" id="credNote" role="status">กรอกรหัสผู้ดูแลและรหัสเภสัชกรด้านบนก่อน จึงจะเปลี่ยนข้อมูลได้ (ดูข้อมูลได้ตามปกติ)</div>
+  <div class="banner" id="pageMsg" role="status" aria-live="polite" hidden></div>
+
+  <div class="tools">
+    <input class="input" id="search" type="search" placeholder="ค้นหารหัสล็อต รหัสยา เลขล็อต" aria-label="ค้นหาล็อต">
+    <select class="input" id="statusFilter" aria-label="กรองสถานะ">
+      <option value="">ทุกสถานะ</option>
+      <option value="active">ใช้ได้ (active)</option>
+      <option value="quarantine">กักไว้ (quarantine)</option>
+      <option value="written_off">ตัดจำหน่าย (written_off)</option>
+    </select>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>รหัสล็อต</th><th>รหัสยา</th><th>เลขล็อต</th><th>วันรับ</th><th>วันหมดอายุ</th>
+        <th>คงเหลือ</th><th>ราคาทุน</th><th>สถานะ</th><th>การจัดการ</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form id="dlgForm" method="dialog" novalidate>
+    <h2 id="dlgTitle"></h2>
+    <p class="summary" id="dlgSummary"></p>
+    <p class="irrev" id="dlgIrrev" hidden>การตัดจำหน่ายย้อนกลับไม่ได้</p>
+    <div id="expiryBox" hidden>
+      <label for="dlgExpiry">วันหมดอายุใหม่ (ตามฉลาก)</label>
+      <input class="input" id="dlgExpiry" type="date">
+    </div>
+    <label for="dlgReason">เหตุผล (บังคับกรอก)</label>
+    <textarea class="input" id="dlgReason"></textarea>
+    <div class="dlgerr" id="dlgErr" role="alert" hidden></div>
+    <div class="dlgbtns">
+      <button class="btn" type="button" id="dlgCancel">ยกเลิก</button>
+      <button class="btn primary" type="submit" id="dlgOk">ยืนยัน</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const STATUS_TEXT = { active: 'ใช้ได้', quarantine: 'กักไว้', written_off: 'ตัดจำหน่าย' };
+
+let asOf = '';
+let lots = [];
+let pending = null;     // งานที่กำลังยืนยันในกล่อง {action, lot, status?, label}
+let sending = false;
+
+// ---------- รหัสผู้ดูแลและรหัสเภสัชกร: เก็บใน sessionStorage เท่านั้น (หายเมื่อปิดแท็บ) ----------
+function store(key, value) { try { value ? sessionStorage.setItem(key, value) : sessionStorage.removeItem(key); } catch (_) {} }
+function load(key) { try { return sessionStorage.getItem(key) || ''; } catch (_) { return ''; } }
+$('adminCode').value = load('adminCode');
+$('rxCode').value = load('rxCode');
+const hasCreds = () => $('adminCode').value.trim() !== '' && $('rxCode').value.trim() !== '';
+for (const id of ['adminCode', 'rxCode']) {
+  $(id).addEventListener('input', () => { store(id, $(id).value.trim()); refreshCreds(); });
+}
+$('credForm').addEventListener('submit', e => e.preventDefault());
+function refreshCreds() {
+  $('credNote').hidden = hasCreds();
+  render();
+}
+
+// ---------- อ่านข้อมูล: GET /api/data (API ของเราเอง ไม่มี key ในหน้าเว็บ) ----------
+async function loadData() {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch('/api/data', { cache: 'no-store', signal: ctl.signal });
+    if (r.status !== 200) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if (!Array.isArray(j?.stock?.items)) throw new Error('ไม่มีข้อมูลคลัง');
+    asOf = String(j.stock.meta?.as_of || '').slice(0, 10);
+    lots = j.stock.items;
+    $('asOf').textContent = asOf || '—';
+    render();
+  } catch (e) {
+    showPage('err', 'โหลดข้อมูลไม่สำเร็จ (' + (e.name === 'AbortError' ? 'หมดเวลา 8 วินาที' : e.message) + ') ทดสอบผ่านลิงก์ Vercel เท่านั้น (Live Server ไม่รัน /api)');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------- แสดงตาราง (createElement / textContent ทั้งหมด) ----------
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+const fmtNum = n => new Intl.NumberFormat('th-TH').format(Number(n));
+const fmtMoney = n => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n));
+
+// ปุ่มต่อสถานะ (written_off ไม่มีปุ่ม)
+const ACTIONS = {
+  active:     [{ label: 'กักไว้', action: 'stock_set_status', status: 'quarantine' },
+               { label: 'ตัดจำหน่าย', action: 'stock_set_status', status: 'written_off', danger: true }],
+  quarantine: [{ label: 'ปล่อยใช้', action: 'stock_set_status', status: 'active' },
+               { label: 'แก้วันหมดอายุ', action: 'stock_fix_expiry' },
+               { label: 'ตัดจำหน่าย', action: 'stock_set_status', status: 'written_off', danger: true }],
+  written_off: [],
+};
+
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const st = $('statusFilter').value;
+  const rows = lots.filter(x => (!st || x.status === st) &&
+    (!q || [x.stock_id, x.sku, x.lot].some(v => String(v ?? '').toLowerCase().includes(q))));
+  const body = $('tbody');
+  body.replaceChildren();
+  const canEdit = hasCreds();
+  for (const x of rows) {
+    const tr = document.createElement('tr');
+    const exp = x.expiry ? String(x.expiry).slice(0, 10) : '';
+    // ไฮไลต์ล็อตที่หมดอายุก่อน as_of (สีพื้นแดงอ่อน + ป้ายข้อความ) เปรียบเทียบเป็นข้อความ YYYY-MM-DD
+    const expired = exp && asOf && exp < asOf;
+    if (expired) tr.className = 'expired';
+    const expTd = el('td', '', exp || 'ไม่ระบุ');
+    if (expired) expTd.append(el('span', 'expflag', 'หมดอายุ'));
+    const badge = el('span', 'badge ' + x.status, STATUS_TEXT[x.status] || String(x.status));
+    const stTd = el('td'); stTd.append(badge);
+    const actTd = el('td');
+    const acts = ACTIONS[x.status] || [];
+    if (!acts.length) {
+      actTd.append(el('span', 'none', '—'));
+    } else {
+      const wrap = el('div', 'actions');
+      for (const a of acts) {
+        const b = el('button', 'btn' + (a.danger ? ' danger' : ''), a.label);
+        b.type = 'button';
+        b.disabled = !canEdit;
+        b.title = canEdit ? '' : 'กรอกรหัสผู้ดูแลและรหัสเภสัชกรก่อน';
+        b.addEventListener('click', () => openDialog(a, x));
+        wrap.append(b);
+      }
+      actTd.append(wrap);
+    }
+    tr.append(el('td', '', x.stock_id), el('td', '', x.sku), el('td', '', x.lot),
+              el('td', '', x.received_date ? String(x.received_date).slice(0, 10) : 'ไม่ระบุ'), expTd,
+              el('td', 'num', fmtNum(x.qty_on_hand)), el('td', 'num', fmtMoney(x.unit_cost)), stTd, actTd);
+    body.append(tr);
+  }
+  if (!rows.length) {
+    const tr = document.createElement('tr'); const td = el('td', 'none', 'ไม่พบล็อต'); td.colSpan = 9; tr.append(td); body.append(tr);
+  }
+  $('count').textContent = 'แสดง ' + rows.length + ' จาก ' + lots.length + ' ล็อต';
+}
+
+function showPage(kind, text) {
+  const b = $('pageMsg');
+  b.className = 'banner ' + kind;
+  b.textContent = text;
+  b.hidden = false;
+}
+
+// ---------- กล่องยืนยัน ----------
+function openDialog(a, lot) {
+  pending = { ...a, lot };
+  const isWriteOff = a.status === 'written_off';
+  const isExpiry = a.action === 'stock_fix_expiry';
+  $('dlg').classList.toggle('danger', isWriteOff);
+  $('dlgTitle').textContent = a.label + ' · ล็อต ' + lot.stock_id;
+  const from = STATUS_TEXT[lot.status] || lot.status;
+  $('dlgSummary').textContent = isExpiry
+    ? 'แก้วันหมดอายุของ ' + lot.stock_id + ' (' + lot.sku + ' ล็อต ' + lot.lot + ') จาก ' + (lot.expiry ? String(lot.expiry).slice(0, 10) : 'ไม่ระบุ')
+    : 'เปลี่ยนสถานะ ' + lot.stock_id + ' (' + lot.sku + ' ล็อต ' + lot.lot + ', คงเหลือ ' + fmtNum(lot.qty_on_hand) + ') จาก "' + from + '" เป็น "' + STATUS_TEXT[a.status] + '"';
+  $('dlgIrrev').hidden = !isWriteOff;
+  $('expiryBox').hidden = !isExpiry;
+  $('dlgExpiry').value = isExpiry && lot.expiry ? String(lot.expiry).slice(0, 10) : '';
+  $('dlgReason').value = '';
+  $('dlgErr').hidden = true;
+  $('dlgOk').className = 'btn primary' + (isWriteOff ? ' danger' : '');
+  $('dlgOk').textContent = isWriteOff ? 'ยืนยันตัดจำหน่าย' : 'ยืนยัน';
+  $('dlgOk').disabled = false;
+  $('dlg').showModal();
+  (isExpiry ? $('dlgExpiry') : $('dlgReason')).focus();
+}
+function dlgError(text) { $('dlgErr').textContent = text; $('dlgErr').hidden = false; }
+$('dlgCancel').addEventListener('click', () => { if (!sending) $('dlg').close(); });
+$('dlg').addEventListener('cancel', e => { if (sending) e.preventDefault(); });
+
+// ---------- เขียนข้อมูล: POST /api/admin ----------
+// ส่งรหัสผู้ดูแลทาง header x-admin-code เท่านั้น (ไม่ใส่ใน URL)
+// หน้าเว็บไม่ตรวจกฎธุรกิจเอง ตรวจเฉพาะช่องที่ต้องกรอก แล้วแสดง message ที่เซิร์ฟเวอร์ตอบตามจริง
+$('dlgForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  if (sending || !pending) return;
+  const reason = $('dlgReason').value.trim();
+  if (!reason) { dlgError('กรุณากรอกเหตุผลก่อนยืนยัน'); $('dlgReason').focus(); return; }
+  const by = $('rxCode').value.trim();
+  const code = $('adminCode').value.trim();
+  if (!code || !by) { dlgError('กรุณากรอกรหัสผู้ดูแลและรหัสเภสัชกรด้านบน'); return; }
+
+  const payload = { action: pending.action, stock_id: pending.lot.stock_id, reason, by };
+  if (pending.action === 'stock_fix_expiry') {
+    const d = $('dlgExpiry').value;          // ค่าจาก <input type="date"> เป็น YYYY-MM-DD (ค.ศ.) ส่งตรง ๆ
+    if (!d) { dlgError('กรุณาเลือกวันหมดอายุ'); $('dlgExpiry').focus(); return; }
+    payload.expiry = d;
+  } else {
+    payload.status = pending.status;
+  }
+
+  sending = true;
+  $('dlgOk').disabled = true;               // ระหว่างส่งปิดปุ่มยืนยัน
+  $('dlgCancel').disabled = true;
+  $('dlgErr').hidden = true;
+  let res, body = null;
+  try {
+    res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-code': code },
+      body: JSON.stringify(payload),
+    });
+    try { body = await res.json(); } catch (_) { body = null; }
+  } catch (e) {
+    res = null;
+  }
+  sending = false;
+  $('dlgOk').disabled = false;
+  $('dlgCancel').disabled = false;
+
+  if (!res) { dlgError('ติดต่อเซิร์ฟเวอร์ไม่ได้ ยังไม่ได้บันทึก ลองใหม่อีกครั้ง'); return; }
+
+  if (res.status === 200 && body && body.ok === true) {
+    const label = pending.label + ' ' + pending.lot.stock_id;
+    $('dlg').close();
+    pending = null;
+    showPage('ok', 'สำเร็จ: ' + label + ' (บันทึกโดย ' + by + ')');
+    await loadData();                       // ดึงข้อมูลใหม่ทันที ไม่แก้ยอดหรือสถานะเองในหน้าเว็บ
+    return;
+  }
+  if (res.status === 401) {
+    // รหัสผู้ดูแลผิด: ล้างรหัสที่เก็บไว้ ปิดปุ่มเปลี่ยนข้อมูล และให้กรอกใหม่
+    store('adminCode', '');
+    $('adminCode').value = '';
+    $('dlg').close();
+    pending = null;
+    refreshCreds();
+    showPage('err', (body && body.message) ? String(body.message) + ' กรุณากรอกใหม่' : 'รหัสผู้ดูแลไม่ถูกต้อง กรุณากรอกใหม่');
+    $('adminCode').focus();
+    return;
+  }
+  // 400 ผิดกฎ หรือ 500/502 ระบบมีปัญหา: ไม่ปิดกล่อง ให้แก้แล้วกดใหม่ได้
+  const msg = (body && body.message) ? String(body.message)
+            : (res.status >= 500 ? 'ระบบมีปัญหา (HTTP ' + res.status + ') ลองใหม่อีกครั้ง' : 'ไม่สำเร็จ (HTTP ' + res.status + ')');
+  dlgError(msg);
+});
+
+$('search').addEventListener('input', render);
+$('statusFilter').addEventListener('change', render);
+refreshCreds();
+loadData();
+</script>
+</body>
+</html>
