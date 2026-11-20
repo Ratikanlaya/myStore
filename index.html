@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ร้านยาจำลอง · หน้าแรก</title>
 <style>
-  :root{--bg:#121212;--card:#181818;--card-hover:#232323;--ink:#ffffff;--muted:#b3b3b3;--accent:#1ed760;--line:#2a2a2a}
+  :root{--bg:#ffffff;--card:#f7f7f5;--card-hover:#f1f1f1;--ink:#000000;--muted:#686868;--accent:#000000;--line:#e6e6e6;--lime:#dceeb1}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans Thai',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;font-size:16px;line-height:1.6}
   main{max-width:720px;margin:0 auto;padding:32px 18px 48px}
@@ -19,11 +19,16 @@
   .menu .title{display:block;font-size:19px;font-weight:700}
   .menu .desc{display:block;color:var(--muted);font-size:15px}
   .menu .arrow{color:var(--accent);font-size:24px;flex:none}
-  .notice{margin-top:28px;padding:14px 16px;border-left:4px solid var(--accent);background:var(--card);border-radius:10px;color:var(--muted)}
+  .back{display:inline-block;margin-bottom:18px;padding:8px 16px;border:1px solid var(--line);border-radius:999px;color:var(--muted);text-decoration:none}
+  .back:hover{color:var(--ink);border-color:var(--accent)}
+  .back:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+  .notice{margin-top:28px;padding:14px 16px;border-left:4px solid var(--accent);background:var(--lime);border-radius:10px;color:var(--ink)}
 </style>
 </head>
 <body>
 <main>
+  <!-- เมนูย้อนกลับไปหน้าแรกของเว็บไซต์ (แก้ href ได้ถ้าหน้าแรกอยู่ที่อื่น) -->
+  <a class="back" href="https://ratikanlaya.github.io/BMI/">← กลับหน้าแรก</a>
   <h1>ร้านยาจำลอง</h1>
   <p class="lead">เลือกหน้าที่ต้องการใช้งาน</p>
   <nav aria-label="เมนูหลัก"><ul class="menu" id="menu"></ul></nav>
