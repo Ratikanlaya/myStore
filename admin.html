@@ -28,7 +28,18 @@
   .btn.danger.primary{background:var(--err);border-color:var(--err);color:var(--on-primary)}
   main{max-width:1400px;margin:0 auto;padding:18px 20px 40px}
   .tabs{display:flex;gap:8px;margin-bottom:14px}
-  .tab{padding:8px 18px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:700}
+  .tab{padding:8px 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);font-weight:700;cursor:pointer}
+  .tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+  .panel[hidden]{display:none}
+  .badge.on{background:var(--primary);color:var(--on-primary)}
+  .badge.off{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1px var(--neutral)}
+  tr.inactive td{color:var(--muted)}
+  .note{color:var(--muted);font-size:14px;margin:0 0 10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .grid2 .full{grid-column:1/-1}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+  #formDlg{width:min(640px,94vw)}
+  .tools .grow{flex:1}
   .banner{border-radius:12px;padding:12px 16px;margin-bottom:14px;font-weight:600}
   .banner[hidden]{display:none}
   .banner.info{background:var(--quar);border:1px solid var(--quar);color:var(--on-warn)}
@@ -85,10 +96,14 @@
 </header>
 
 <main>
-  <div class="tabs" role="tablist"><span class="tab" role="tab" aria-selected="true">คลังรายล็อต</span></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" type="button" role="tab" id="tabBtnLots" aria-controls="panelLots" aria-selected="true">คลังรายล็อต</button>
+    <button class="tab" type="button" role="tab" id="tabBtnDrugs" aria-controls="panelDrugs" aria-selected="false">บัญชียา</button>
+  </div>
   <div class="banner info" id="credNote" role="status">กรอกรหัสผู้ดูแลและรหัสเภสัชกรด้านบนก่อน จึงจะเปลี่ยนข้อมูลได้ (ดูข้อมูลได้ตามปกติ)</div>
   <div class="banner" id="pageMsg" role="status" aria-live="polite" hidden></div>
 
+  <section class="panel" id="panelLots" role="tabpanel" aria-labelledby="tabBtnLots">
   <div class="tools">
     <input class="input" id="search" type="search" placeholder="ค้นหารหัสล็อต รหัสยา เลขล็อต" aria-label="ค้นหาล็อต">
     <select class="input" id="statusFilter" aria-label="กรองสถานะ">
@@ -109,6 +124,31 @@
       <tbody id="tbody"></tbody>
     </table>
   </div>
+  </section>
+
+  <!-- แท็บบัญชียา: เพิ่มยา แก้ไขยา เปิด/ปิดใช้งาน และรับยาเข้าล็อตใหม่ -->
+  <section class="panel" id="panelDrugs" role="tabpanel" aria-labelledby="tabBtnDrugs" hidden>
+  <p class="note" id="catalogNote" hidden></p>
+  <div class="tools">
+    <input class="input" id="drugSearch" type="search" placeholder="ค้นหารหัสยา ชื่อยา หมวด ATC" aria-label="ค้นหายา">
+    <select class="input" id="activeFilter" aria-label="กรองการใช้งาน">
+      <option value="">ทุกรายการ</option>
+      <option value="on">เปิดใช้งาน</option>
+      <option value="off">ปิดใช้งาน</option>
+    </select>
+    <span class="count grow" id="drugCount"></span>
+    <button class="btn primary" type="button" id="addDrugBtn">+ เพิ่มยาใหม่</button>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>รหัสยา</th><th>ชื่อสามัญ</th><th>ความแรง</th><th>รูปแบบ</th><th>หน่วย</th><th>หมวด</th><th>ATC</th>
+        <th>จุดสั่งซื้อ</th><th>ล็อต</th><th>ใช้ได้</th><th>การใช้งาน</th><th>การจัดการ</th>
+      </tr></thead>
+      <tbody id="drugBody"></tbody>
+    </table>
+  </div>
+  </section>
 </main>
 
 <dialog id="dlg" aria-labelledby="dlgTitle">
@@ -130,6 +170,20 @@
   </form>
 </dialog>
 
+<dialog id="formDlg" aria-labelledby="formTitle">
+  <form id="formForm" method="dialog" novalidate>
+    <h2 id="formTitle"></h2>
+    <p class="summary" id="formSummary"></p>
+    <div class="grid2" id="formFields"></div>
+    <datalist id="catList"></datalist>
+    <div class="dlgerr" id="formErr" role="alert" hidden></div>
+    <div class="dlgbtns">
+      <button class="btn" type="button" id="formCancel">ยกเลิก</button>
+      <button class="btn primary" type="submit" id="formOk">บันทึก</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -137,6 +191,8 @@ const STATUS_TEXT = { active: 'ใช้ได้', quarantine: 'กักไว
 
 let asOf = '';
 let lots = [];
+let drugs = [];          // บัญชียา (จาก catalog ถ้ามี ไม่งั้นจาก drugs)
+let hasCatalog = false;
 let pending = null;     // งานที่กำลังยืนยันในกล่อง {action, lot, status?, label}
 let sending = false;
 
@@ -153,6 +209,7 @@ $('credForm').addEventListener('submit', e => e.preventDefault());
 function refreshCreds() {
   $('credNote').hidden = hasCreds();
   render();
+  if (typeof renderDrugs === 'function') renderDrugs();
 }
 
 // ---------- อ่านข้อมูล: GET /api/data (API ของเราเอง ไม่มี key ในหน้าเว็บ) ----------
@@ -166,8 +223,11 @@ async function loadData() {
     if (!Array.isArray(j?.stock?.items)) throw new Error('ไม่มีข้อมูลคลัง');
     asOf = String(j.stock.meta?.as_of || '').slice(0, 10);
     lots = j.stock.items;
+    hasCatalog = Array.isArray(j.catalog?.items);
+    drugs = hasCatalog ? j.catalog.items : (Array.isArray(j.drugs?.items) ? j.drugs.items : []);
     $('asOf').textContent = asOf || '—';
     render();
+    renderDrugs();
   } catch (e) {
     showPage('err', 'โหลดข้อมูลไม่สำเร็จ (' + (e.name === 'AbortError' ? 'หมดเวลา 8 วินาที' : e.message) + ') ทดสอบผ่านลิงก์ Vercel เท่านั้น (Live Server ไม่รัน /api)');
   } finally {
@@ -339,6 +399,225 @@ $('dlgForm').addEventListener('submit', async ev => {
             : (res.status >= 500 ? 'ระบบมีปัญหา (HTTP ' + res.status + ') ลองใหม่อีกครั้ง' : 'ไม่สำเร็จ (HTTP ' + res.status + ')');
   dlgError(msg);
 });
+
+// ===================== แท็บบัญชียา =====================
+// สลับแท็บ
+function showTab(name) {
+  const lotsOn = name === 'lots';
+  $('tabBtnLots').setAttribute('aria-selected', lotsOn ? 'true' : 'false');
+  $('tabBtnDrugs').setAttribute('aria-selected', lotsOn ? 'false' : 'true');
+  $('panelLots').hidden = !lotsOn;
+  $('panelDrugs').hidden = lotsOn;
+  try { sessionStorage.setItem('adminTab', name); } catch (_) {}
+}
+$('tabBtnLots').addEventListener('click', () => showTab('lots'));
+$('tabBtnDrugs').addEventListener('click', () => showTab('drugs'));
+
+const DRUG_FIELDS = [
+  { key: 'sku',           label: 'รหัสยา (A-Z 0-9 และ -)', placeholder: 'เช่น GABA300' },
+  { key: 'generic_name',  label: 'ชื่อสามัญ',  placeholder: 'เช่น Gabapentin' },
+  { key: 'strength',      label: 'ความแรง',   placeholder: 'เช่น 300 mg' },
+  { key: 'dosage_form',   label: 'รูปแบบยา',  placeholder: 'เช่น capsule' },
+  { key: 'unit',          label: 'หน่วยนับ',  placeholder: 'เช่น capsule' },
+  { key: 'category',      label: 'หมวดหมู่',  placeholder: 'เลือกหรือพิมพ์', list: 'catList' },
+  { key: 'atc_code',      label: 'รหัส ATC',  placeholder: 'เช่น N02BF01' },
+  { key: 'reorder_level', label: 'จุดสั่งซื้อ (จำนวนเต็ม)', type: 'number', placeholder: 'เช่น 100' },
+];
+const isOn = d => d.is_active !== false;     // ถ้าไม่มีคอลัมน์ is_active ถือว่าเปิดใช้งาน
+
+function renderDrugs() {
+  const q = $('drugSearch').value.trim().toLowerCase();
+  const f = $('activeFilter').value;
+  const rows = drugs.filter(d => (!f || (f === 'on') === isOn(d)) &&
+    (!q || [d.sku, d.generic_name, d.category, d.atc_code].some(v => String(v ?? '').toLowerCase().includes(q))));
+  const body = $('drugBody');
+  body.replaceChildren();
+  const canEdit = hasCreds();
+  $('addDrugBtn').disabled = !canEdit;
+  $('addDrugBtn').title = canEdit ? '' : 'กรอกรหัสผู้ดูแลและรหัสเภสัชกรก่อน';
+  $('catalogNote').hidden = hasCatalog;
+  $('catalogNote').textContent = 'ยังไม่มีข้อมูลจาก v_drug_catalog (ยังไม่ได้รัน crud.sql) จึงไม่เห็นจำนวนล็อต ยอดใช้ได้ และสถานะการใช้งาน';
+  for (const d of rows) {
+    const tr = document.createElement('tr');
+    if (!isOn(d)) tr.className = 'inactive';
+    const stTd = el('td'); stTd.append(el('span', 'badge ' + (isOn(d) ? 'on' : 'off'), isOn(d) ? 'เปิดใช้งาน' : 'ปิดใช้งาน'));
+    const actTd = el('td'); const wrap = el('div', 'actions');
+    const acts = [['แก้ไข', () => openDrugForm('edit', d)]];
+    if (isOn(d)) acts.push(['รับเข้าล็อตใหม่', () => openDrugForm('receive', d)]);
+    acts.push([isOn(d) ? 'ปิดใช้งาน' : 'เปิดใช้งาน', () => openDrugForm(isOn(d) ? 'disable' : 'enable', d)]);
+    for (const [label, fn] of acts) {
+      const b = el('button', 'btn' + (label === 'ปิดใช้งาน' ? ' danger' : ''), label);
+      b.type = 'button'; b.disabled = !canEdit;
+      b.title = canEdit ? '' : 'กรอกรหัสผู้ดูแลและรหัสเภสัชกรก่อน';
+      b.addEventListener('click', fn);
+      wrap.append(b);
+    }
+    actTd.append(wrap);
+    const dash = v => (v === undefined || v === null) ? '—' : fmtNum(v);
+    tr.append(el('td', '', d.sku), el('td', '', d.generic_name), el('td', '', d.strength), el('td', '', d.dosage_form),
+              el('td', '', d.unit), el('td', '', d.category), el('td', '', d.atc_code), el('td', 'num', fmtNum(d.reorder_level)),
+              el('td', 'num', dash(d.lot_count)), el('td', 'num', dash(d.usable_qty)), stTd, actTd);
+    body.append(tr);
+  }
+  if (!rows.length) {
+    const tr = document.createElement('tr'); const td = el('td', 'none', 'ไม่พบรายการยา'); td.colSpan = 12; tr.append(td); body.append(tr);
+  }
+  $('drugCount').textContent = 'แสดง ' + rows.length + ' จาก ' + drugs.length + ' รายการ';
+  // ตัวเลือกหมวดหมู่ในฟอร์ม มาจากหมวดที่มีอยู่แล้ว
+  const cats = [...new Set(drugs.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+  $('catList').replaceChildren(...cats.map(c => { const o = document.createElement('option'); o.value = c; return o; }));
+}
+
+// ---------- กล่องฟอร์ม ----------
+let formTask = null;   // {mode, drug}
+function addField(f, value, opts = {}) {
+  const wrap = el('div', opts.full ? 'full' : '');
+  const id = 'ff_' + f.key;
+  const lab = el('label', '', f.label); lab.htmlFor = id;
+  const inp = document.createElement(f.textarea ? 'textarea' : 'input');
+  inp.className = 'input'; inp.id = id; inp.dataset.key = f.key;
+  if (!f.textarea) inp.type = f.type || 'text';
+  if (f.type === 'number') { inp.inputMode = 'decimal'; }
+  if (f.placeholder) inp.placeholder = f.placeholder;
+  if (f.list) inp.setAttribute('list', f.list);
+  inp.autocomplete = 'off';
+  inp.value = value ?? '';
+  if (opts.readOnly) inp.readOnly = true;
+  wrap.append(lab, inp);
+  $('formFields').append(wrap);
+  return inp;
+}
+const REASON = { key: 'reason', label: 'เหตุผล (บังคับกรอก)', textarea: true };
+
+function openDrugForm(mode, d) {
+  formTask = { mode, drug: d || null };
+  $('formFields').replaceChildren();
+  $('formErr').hidden = true;
+  $('formDlg').classList.toggle('danger', mode === 'disable');
+  $('formOk').className = 'btn primary' + (mode === 'disable' ? ' danger' : '');
+  $('formOk').disabled = false;
+  if (mode === 'create') {
+    $('formTitle').textContent = 'เพิ่มยาใหม่';
+    $('formSummary').textContent = 'กรอกทุกช่อง ยาใหม่ยังไม่มีล็อต จะขายได้หลังรับยาเข้าล็อตแรก';
+    for (const f of DRUG_FIELDS) addField(f, '');
+    $('formOk').textContent = 'เพิ่มยา';
+  } else if (mode === 'edit') {
+    $('formTitle').textContent = 'แก้ไขยา ' + d.sku;
+    $('formSummary').textContent = 'แก้เฉพาะช่องที่ต้องการ ระบบจะบันทึกเฉพาะช่องที่เปลี่ยน รหัสยาแก้ไม่ได้';
+    for (const f of DRUG_FIELDS) addField(f, d[f.key], { readOnly: f.key === 'sku' });
+    addField(REASON, '', { full: true });
+    $('formOk').textContent = 'บันทึกการแก้ไข';
+  } else if (mode === 'receive') {
+    $('formTitle').textContent = 'รับยาเข้าล็อตใหม่ · ' + d.sku;
+    $('formSummary').textContent = d.generic_name + ' ' + d.strength + ' · หน่วย ' + d.unit;
+    addField({ key: 'lot', label: 'เลขล็อต (ตามฉลาก)', placeholder: 'เช่น GB2511' }, '');
+    addField({ key: 'qty', label: 'จำนวนรับเข้า (' + d.unit + ')', type: 'number' }, '');
+    addField({ key: 'received_date', label: 'วันรับเข้า', type: 'date' }, asOf);
+    addField({ key: 'expiry', label: 'วันหมดอายุ', type: 'date' }, '');
+    addField({ key: 'unit_cost', label: 'ราคาทุนต่อหน่วย (บาท)', type: 'number' }, '');
+    $('formOk').textContent = 'รับเข้า';
+  } else {
+    const on = mode === 'enable';
+    $('formTitle').textContent = (on ? 'เปิดใช้งาน' : 'ปิดใช้งาน') + ' · ' + d.sku;
+    $('formSummary').textContent = on ? 'ยานี้จะกลับมาแสดงในหน้าขายเมื่อมียอดใช้ได้'
+      : 'ยานี้จะไม่แสดงในหน้าขาย ปิดได้เมื่อไม่มีของเหลือในล็อตที่ใช้ได้หรือกักไว้ (เปิดกลับได้ภายหลัง)';
+    addField(REASON, '', { full: true });
+    $('formOk').textContent = on ? 'ยืนยันเปิดใช้งาน' : 'ยืนยันปิดใช้งาน';
+  }
+  $('formDlg').showModal();
+  const first = $('formFields').querySelector('input:not([readonly]),textarea');
+  if (first) first.focus();
+}
+const fval = key => { const e = $('ff_' + key); return e ? e.value.trim() : ''; };
+function formError(text) { $('formErr').textContent = text; $('formErr').hidden = false; }
+$('formCancel').addEventListener('click', () => { if (!sending) $('formDlg').close(); });
+$('formDlg').addEventListener('cancel', e => { if (sending) e.preventDefault(); });
+$('addDrugBtn').addEventListener('click', () => openDrugForm('create'));
+$('drugSearch').addEventListener('input', renderDrugs);
+$('activeFilter').addEventListener('change', renderDrugs);
+
+// ---------- ส่ง POST /api/admin (action ตาม api/admin.js) ----------
+// หน้าเว็บตรวจเฉพาะช่องว่าง กฎอื่น (รูปแบบรหัส วันที่ ยอด) ให้ฐานข้อมูลตัดสินแล้วแสดง message ตามจริง
+$('formForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  if (sending || !formTask) return;
+  const { mode, drug } = formTask;
+  const by = $('rxCode').value.trim();
+  const code = $('adminCode').value.trim();
+  if (!code || !by) { formError('กรุณากรอกรหัสผู้ดูแลและรหัสเภสัชกรด้านบน'); return; }
+
+  let payload, okText;
+  if (mode === 'create') {
+    const empty = DRUG_FIELDS.filter(f => !fval(f.key));
+    if (empty.length) { formError('กรุณากรอก: ' + empty.map(f => f.label.replace(/ \(.*\)$/, '')).join(', ')); $('ff_' + empty[0].key).focus(); return; }
+    const drugObj = {};
+    for (const f of DRUG_FIELDS) drugObj[f.key] = fval(f.key);
+    payload = { action: 'drug_create', drug: drugObj, by };
+    okText = 'เพิ่มยา ' + drugObj.sku.toUpperCase();
+  } else if (mode === 'edit') {
+    const changes = {};
+    for (const f of DRUG_FIELDS) {
+      if (f.key === 'sku') continue;
+      const v = fval(f.key);
+      if (v !== String(drug[f.key] ?? '')) changes[f.key] = v;
+    }
+    if (!Object.keys(changes).length) { formError('ยังไม่ได้แก้ไขช่องใด'); return; }
+    const reason = fval('reason');
+    if (!reason) { formError('กรุณากรอกเหตุผลก่อนบันทึก'); $('ff_reason').focus(); return; }
+    payload = { action: 'drug_update', sku: drug.sku, changes, reason, by };
+    okText = 'แก้ไขยา ' + drug.sku + ' (' + Object.keys(changes).join(', ') + ')';
+  } else if (mode === 'receive') {
+    const need = [['lot', 'เลขล็อต'], ['qty', 'จำนวน'], ['received_date', 'วันรับเข้า'], ['expiry', 'วันหมดอายุ'], ['unit_cost', 'ราคาทุน']];
+    const empty = need.filter(([k]) => !fval(k));
+    if (empty.length) { formError('กรุณากรอก: ' + empty.map(x => x[1]).join(', ')); $('ff_' + empty[0][0]).focus(); return; }
+    // ค่าจาก <input type="date"> เป็น YYYY-MM-DD (ค.ศ.) ส่งตรง ๆ
+    payload = { action: 'stock_receive', sku: drug.sku, lot: fval('lot'), received_date: fval('received_date'),
+                expiry: fval('expiry'), qty: fval('qty'), unit_cost: fval('unit_cost'), by };
+    okText = 'รับเข้า ' + drug.sku + ' ล็อต ' + fval('lot').toUpperCase();
+  } else {
+    const reason = fval('reason');
+    if (!reason) { formError('กรุณากรอกเหตุผลก่อนยืนยัน'); $('ff_reason').focus(); return; }
+    payload = { action: 'drug_set_active', sku: drug.sku, active: mode === 'enable', reason, by };
+    okText = (mode === 'enable' ? 'เปิดใช้งาน ' : 'ปิดใช้งาน ') + drug.sku;
+  }
+
+  sending = true;
+  $('formOk').disabled = true; $('formCancel').disabled = true; $('formErr').hidden = true;
+  let res = null, body = null;
+  try {
+    res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-code': code },
+      body: JSON.stringify(payload),
+    });
+    try { body = await res.json(); } catch (_) { body = null; }
+  } catch (_) { res = null; }
+  sending = false;
+  $('formOk').disabled = false; $('formCancel').disabled = false;
+
+  if (!res) { formError('ติดต่อเซิร์ฟเวอร์ไม่ได้ ยังไม่ได้บันทึก ลองใหม่อีกครั้ง'); return; }
+  if (res.status === 200 && body && body.ok === true) {
+    $('formDlg').close(); formTask = null;
+    let extra = '';
+    if (body.stock && body.stock.stock_id) extra = ' ได้รหัสล็อต ' + body.stock.stock_id;
+    showPage('ok', 'สำเร็จ: ' + okText + extra + ' (บันทึกโดย ' + by + ')');
+    await loadData();
+    return;
+  }
+  if (res.status === 401) {
+    store('adminCode', ''); $('adminCode').value = '';
+    $('formDlg').close(); formTask = null;
+    refreshCreds();
+    showPage('err', (body && body.message ? String(body.message) : 'รหัสผู้ดูแลไม่ถูกต้อง') + ' กรุณากรอกใหม่');
+    $('adminCode').focus();
+    return;
+  }
+  // 400 ผิดกฎ หรือ 500/502 ระบบมีปัญหา: ไม่ปิดกล่อง แก้แล้วกดใหม่ได้
+  formError(body && body.message ? String(body.message)
+    : (res.status >= 500 ? 'ระบบมีปัญหา (HTTP ' + res.status + ') ลองใหม่อีกครั้ง' : 'ไม่สำเร็จ (HTTP ' + res.status + ')'));
+});
+
+try { if (sessionStorage.getItem('adminTab') === 'drugs') showTab('drugs'); } catch (_) {}
 
 $('search').addEventListener('input', render);
 $('statusFilter').addEventListener('change', render);
