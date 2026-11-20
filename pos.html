@@ -4,21 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>หน้าขายยา · ร้านยาจำลอง</title>
+<script>/* โหมดมืด: อ่านค่าที่เลือกไว้ ถ้าไม่เคยเลือกให้ตามการตั้งค่าของเครื่อง */(function(){var t='';try{t=sessionStorage.getItem('theme')||''}catch(e){}if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();</script>
 <style>
-  :root{--bg:#ffffff;--card:#f7f7f5;--card2:#ffffff;--ink:#000000;--muted:#686868;--line:#e6e6e6;
-        --ok:#1ea64a;--warn:#f3c9b6;--err:#ff3d8b;--primary:#000000;--on-primary:#ffffff;
-        --cream:#f4ecd6;--mint:#c8e6cd;--pink:#efd4d4}
+  :root{color-scheme:light;--bg:#FFFFFF;--card:#F5F1E8;--card2:#FFFFFF;--ink:#1A1A1A;--muted:#595959;--line:rgba(128,128,128,.4);--hover:rgba(128,128,128,.14);--primary:#1A1A1A;--on-primary:#FFFFFF;--neutral:#808080;--warn:#B38B6D;--on-warn:#1A1A1A;--err:#B3261E;--pink:rgba(179,38,30,.08);--pink2:rgba(179,38,30,.16);--ok:#1A1A1A;--cream:#F5F1E8;--mint:#F5F1E8}
+  html[data-theme=dark]{color-scheme:dark;--bg:#111111;--card:#1C1C1C;--card2:#262626;--ink:#F5F1E8;--muted:#A6A6A6;--line:rgba(128,128,128,.45);--hover:rgba(128,128,128,.2);--primary:#F5F1E8;--on-primary:#111111;--neutral:#808080;--warn:#B38B6D;--on-warn:#111111;--err:#E5736B;--pink:rgba(229,115,107,.14);--pink2:rgba(229,115,107,.26);--ok:#F5F1E8;--cream:rgba(179,139,109,.16);--mint:rgba(245,241,232,.06)}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans Thai',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;font-size:16px;line-height:1.6}
   button,input{font:inherit}
   header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
   .head{max-width:1200px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .head h1{font-size:22px;margin:0}
+  .headright{display:flex;align-items:center;gap:10px}
   .head a{color:var(--muted);text-decoration:none;padding:8px 14px;border:1px solid var(--line);border-radius:999px}
   .head a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
   .meta{color:var(--muted);font-size:15px}
   main{max-width:1200px;margin:0 auto;padding:18px}
-  .fallback{background:var(--cream);color:var(--ink);font-weight:700;border-radius:12px;padding:12px 16px;margin-bottom:14px}
+  .fallback{background:var(--warn);color:var(--on-warn);font-weight:700;border-radius:12px;padding:12px 16px;margin-bottom:14px}
   .fallback[hidden]{display:none}
   .notice{color:var(--muted);font-size:15px;margin:0 0 14px}
   .grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
@@ -35,7 +36,7 @@
   .drug .sub{display:block;color:var(--muted);font-size:14px}
   .drug .qty{text-align:right;white-space:nowrap}
   .badge{display:inline-block;font-size:13px;font-weight:700;border-radius:999px;padding:2px 10px;margin-top:2px}
-  .badge.low{background:var(--warn);color:var(--ink)}
+  .badge.low{background:var(--warn);color:var(--on-warn)}
   .empty{color:var(--muted)}
   .selected{background:var(--card2);border-radius:14px;padding:14px;margin-bottom:14px}
   .selected .big{font-size:30px;font-weight:800;color:var(--ink)}
@@ -56,6 +57,9 @@
   th{color:var(--muted);font-weight:600}
   .tablewrap{overflow:auto}
   .recent{margin-top:16px}
+  .theme-toggle{border:1px solid var(--line);background:var(--card2);color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit;font-size:15px;cursor:pointer;white-space:nowrap}
+  .theme-toggle:hover{background:var(--hover)}
+  .theme-toggle:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -63,7 +67,7 @@
   <div class="head">
     <h1>หน้าขายยา</h1>
     <span class="meta" id="asOf">กำลังโหลดข้อมูล…</span>
-    <a href="index.html">← หน้าแรก</a>
+    <span class="headright"><a href="index.html">← หน้าแรก</a><button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">โหมดมืด: ปิด</button></span>
   </div>
 </header>
 <main>
@@ -375,5 +379,6 @@ $('sellForm').addEventListener('submit', async ev => {
 $('search').addEventListener('input', renderList);
 loadData();
 </script>
+<script>/* ปุ่มเปิด/ปิดโหมดมืด มุมขวาบน */(function(){var b=document.getElementById('themeToggle'),h=document.documentElement;function sync(){var on=h.getAttribute('data-theme')==='dark';b.setAttribute('aria-pressed',on?'true':'false');b.textContent=on?'โหมดมืด: เปิด':'โหมดมืด: ปิด';}b.addEventListener('click',function(){var on=h.getAttribute('data-theme')!=='dark';if(on)h.setAttribute('data-theme','dark');else h.removeAttribute('data-theme');try{sessionStorage.setItem('theme',on?'dark':'light')}catch(e){}sync();});sync();})();</script>
 </body>
 </html>

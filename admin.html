@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>จัดการระบบ · คลังรายล็อต</title>
+<script>/* โหมดมืด: อ่านค่าที่เลือกไว้ ถ้าไม่เคยเลือกให้ตามการตั้งค่าของเครื่อง */(function(){var t='';try{t=sessionStorage.getItem('theme')||''}catch(e){}if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();</script>
 <style>
-  :root{--bg:#ffffff;--card:#f7f7f5;--card2:#ffffff;--ink:#000000;--muted:#686868;--line:#e6e6e6;
-        --active:#c8e6cd;--quar:#f3c9b6;--off:#e6e6e6;--err:#ff3d8b;--primary:#000000;--on-primary:#ffffff;
-        --success:#1ea64a;--pink:#efd4d4;--hover:#f1f1f1}
+  :root{color-scheme:light;--bg:#FFFFFF;--card:#F5F1E8;--card2:#FFFFFF;--ink:#1A1A1A;--muted:#595959;--line:rgba(128,128,128,.4);--hover:rgba(128,128,128,.14);--primary:#1A1A1A;--on-primary:#FFFFFF;--neutral:#808080;--warn:#B38B6D;--on-warn:#1A1A1A;--err:#B3261E;--pink:rgba(179,38,30,.08);--pink2:rgba(179,38,30,.16);--quar:#B38B6D;--success:#1A1A1A}
+  html[data-theme=dark]{color-scheme:dark;--bg:#111111;--card:#1C1C1C;--card2:#262626;--ink:#F5F1E8;--muted:#A6A6A6;--line:rgba(128,128,128,.45);--hover:rgba(128,128,128,.2);--primary:#F5F1E8;--on-primary:#111111;--neutral:#808080;--warn:#B38B6D;--on-warn:#111111;--err:#E5736B;--pink:rgba(229,115,107,.14);--pink2:rgba(229,115,107,.26);--quar:#B38B6D;--success:#F5F1E8}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans Thai',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;font-size:16px;line-height:1.6}
   button,input,select,textarea{font:inherit}
@@ -31,8 +31,8 @@
   .tab{padding:8px 18px;border-radius:999px;background:var(--ink);color:var(--bg);font-weight:700}
   .banner{border-radius:12px;padding:12px 16px;margin-bottom:14px;font-weight:600}
   .banner[hidden]{display:none}
-  .banner.info{background:var(--quar);border:1px solid var(--quar);color:var(--ink)}
-  .banner.ok{background:var(--active);border:1px solid var(--success);color:var(--ink)}
+  .banner.info{background:var(--quar);border:1px solid var(--quar);color:var(--on-warn)}
+  .banner.ok{background:var(--card2);border:1px solid var(--success);color:var(--ink)}
   .banner.err{background:var(--pink);border:1px solid var(--err);color:var(--ink)}
   .tools{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center}
   .tools .input{min-width:260px}
@@ -44,12 +44,12 @@
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   tbody tr:hover{background:var(--hover)}
   tr.expired td{background:var(--pink)}
-  tr.expired:hover td{background:var(--quar)}
+  tr.expired:hover td{background:var(--pink2)}
   .expflag{display:inline-block;margin-left:6px;font-size:13px;font-weight:700;color:var(--ink);border:1px solid var(--err);border-radius:999px;padding:0 8px}
-  .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:14px;font-weight:700;color:#000}
-  .badge.active{background:var(--active)}
+  .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:14px;font-weight:700;color:var(--on-warn)}
+  .badge.active{background:var(--primary);color:var(--on-primary)}
   .badge.quarantine{background:var(--quar)}
-  .badge.written_off{background:var(--off);color:var(--ink)}
+  .badge.written_off{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1px var(--neutral)}
   .actions{display:flex;flex-wrap:nowrap;gap:6px}
   .none{color:var(--muted)}
   dialog{background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:16px;padding:22px;width:min(520px,94vw)}
@@ -64,6 +64,9 @@
   .dlgerr{color:var(--ink);background:var(--pink);border:1px solid var(--err);border-radius:10px;padding:10px 12px;margin-top:12px}
   .dlgerr[hidden]{display:none}
   .dlgbtns{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  .theme-toggle{border:1px solid var(--line);background:var(--card2);color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit;font-size:15px;cursor:pointer;white-space:nowrap}
+  .theme-toggle:hover{background:var(--hover)}
+  .theme-toggle:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -76,6 +79,7 @@
     <form class="creds" id="credForm" autocomplete="off">
       <label>รหัสผู้ดูแล<input class="input" id="adminCode" type="password" autocomplete="off"></label>
       <label>รหัสเภสัชกร<input class="input" id="rxCode" type="text" placeholder="เช่น RX-01" autocomplete="off"></label>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">โหมดมืด: ปิด</button>
     </form>
   </div>
 </header>
@@ -341,5 +345,6 @@ $('statusFilter').addEventListener('change', render);
 refreshCreds();
 loadData();
 </script>
+<script>/* ปุ่มเปิด/ปิดโหมดมืด มุมขวาบน */(function(){var b=document.getElementById('themeToggle'),h=document.documentElement;function sync(){var on=h.getAttribute('data-theme')==='dark';b.setAttribute('aria-pressed',on?'true':'false');b.textContent=on?'โหมดมืด: เปิด':'โหมดมืด: ปิด';}b.addEventListener('click',function(){var on=h.getAttribute('data-theme')!=='dark';if(on)h.setAttribute('data-theme','dark');else h.removeAttribute('data-theme');try{sessionStorage.setItem('theme',on?'dark':'light')}catch(e){}sync();});sync();})();</script>
 </body>
 </html>
