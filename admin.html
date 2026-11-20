@@ -175,7 +175,6 @@
     <h2 id="formTitle"></h2>
     <p class="summary" id="formSummary"></p>
     <div class="grid2" id="formFields"></div>
-    <datalist id="catList"></datalist>
     <div class="dlgerr" id="formErr" role="alert" hidden></div>
     <div class="dlgbtns">
       <button class="btn" type="button" id="formCancel">ยกเลิก</button>
@@ -415,13 +414,13 @@ $('tabBtnDrugs').addEventListener('click', () => showTab('drugs'));
 
 const DRUG_FIELDS = [
   { key: 'sku',           label: 'รหัสยา (A-Z 0-9 และ -)', placeholder: 'เช่น GABA300' },
-  { key: 'generic_name',  label: 'ชื่อสามัญ',  placeholder: 'เช่น Gabapentin' },
-  { key: 'strength',      label: 'ความแรง',   placeholder: 'เช่น 300 mg' },
-  { key: 'dosage_form',   label: 'รูปแบบยา',  placeholder: 'เช่น capsule' },
-  { key: 'unit',          label: 'หน่วยนับ',  placeholder: 'เช่น capsule' },
-  { key: 'category',      label: 'หมวดหมู่',  placeholder: 'เลือกหรือพิมพ์', list: 'catList' },
-  { key: 'atc_code',      label: 'รหัส ATC',  placeholder: 'เช่น N02BF01' },
-  { key: 'reorder_level', label: 'จุดสั่งซื้อ (จำนวนเต็ม)', type: 'number', placeholder: 'เช่น 100' },
+  { key: 'generic_name',  label: 'ชื่อสามัญ',  placeholder: 'เลือกหรือพิมพ์', dropdown: true },
+  { key: 'strength',      label: 'ความแรง',   placeholder: 'เลือกหรือพิมพ์', dropdown: true },
+  { key: 'dosage_form',   label: 'รูปแบบยา',  placeholder: 'เลือกหรือพิมพ์', dropdown: true },
+  { key: 'unit',          label: 'หน่วยนับ',  placeholder: 'เลือกหรือพิมพ์', dropdown: true },
+  { key: 'category',      label: 'หมวดหมู่',  placeholder: 'เลือกหรือพิมพ์', dropdown: true },
+  { key: 'atc_code',      label: 'รหัส ATC',  placeholder: 'เลือกหรือพิมพ์', dropdown: true },
+  { key: 'reorder_level', label: 'จุดสั่งซื้อ (จำนวนเต็ม)', type: 'number', placeholder: 'เลือกหรือพิมพ์', dropdown: true },
 ];
 const isOn = d => d.is_active !== false;     // ถ้าไม่มีคอลัมน์ is_active ถือว่าเปิดใช้งาน
 
@@ -463,9 +462,6 @@ function renderDrugs() {
     const tr = document.createElement('tr'); const td = el('td', 'none', 'ไม่พบรายการยา'); td.colSpan = 12; tr.append(td); body.append(tr);
   }
   $('drugCount').textContent = 'แสดง ' + rows.length + ' จาก ' + drugs.length + ' รายการ';
-  // ตัวเลือกหมวดหมู่ในฟอร์ม มาจากหมวดที่มีอยู่แล้ว
-  const cats = [...new Set(drugs.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
-  $('catList').replaceChildren(...cats.map(c => { const o = document.createElement('option'); o.value = c; return o; }));
 }
 
 // ---------- กล่องฟอร์ม ----------
@@ -479,7 +475,17 @@ function addField(f, value, opts = {}) {
   if (!f.textarea) inp.type = f.type || 'text';
   if (f.type === 'number') { inp.inputMode = 'decimal'; }
   if (f.placeholder) inp.placeholder = f.placeholder;
-  if (f.list) inp.setAttribute('list', f.list);
+  if (f.dropdown && !opts.readOnly) {
+    // ตัวเลือกดรอปดาวน์: ค่าที่ไม่ซ้ำในบัญชียาปัจจุบัน ยังพิมพ์ค่าใหม่เองได้
+    const listId = 'dl_' + f.key;
+    const dl = document.createElement('datalist');
+    dl.id = listId;
+    const vals = [...new Set(drugs.map(d => d[f.key]).filter(v => v !== null && v !== undefined && v !== '').map(String))];
+    vals.sort(f.type === 'number' ? (a, b) => Number(a) - Number(b) : (a, b) => a.localeCompare(b, 'th'));
+    for (const v of vals) { const o = document.createElement('option'); o.value = v; dl.append(o); }
+    inp.setAttribute('list', listId);
+    wrap.append(dl);
+  }
   inp.autocomplete = 'off';
   inp.value = value ?? '';
   if (opts.readOnly) inp.readOnly = true;
